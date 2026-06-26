@@ -27,6 +27,16 @@ export type PayResult = {
   balances: Balances;
 };
 
+export type Tx = {
+  id: number;
+  type: "swap" | "pay" | "cashout";
+  title: string;
+  amountIdr: number;
+  direction: "in" | "out";
+  hash: string | null;
+  createdAt: number;
+};
+
 async function req<T>(path: string, opts?: { method?: string; body?: unknown }): Promise<T> {
   const res = await fetch(BASE + path, {
     method: opts?.method ?? "GET",
@@ -68,4 +78,5 @@ export const api = {
       "/cashout/redeem",
       { method: "POST", body: { escrowId, codeHex } },
     ),
+  history: (waNumber: string) => req<Tx[]>(`/history/${encodeURIComponent(waNumber)}`),
 };

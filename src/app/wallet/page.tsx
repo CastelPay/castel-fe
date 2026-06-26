@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { api, type Balances, type Quote } from "@/lib/api";
+import { api, type Balances, type Quote, type Tx } from "@/lib/api";
+
+const EXPLORER = "https://stellar.expert/explorer/testnet/tx/";
 
 const idr = (n: number) => "Rp " + new Intl.NumberFormat("id-ID").format(Math.round(n));
 const toNum = (s: string) => Number(s);
@@ -11,6 +13,7 @@ export default function WalletPage() {
   const [waNumber, setWaNumber] = useState<string | null>(null);
   const [phone, setPhone] = useState("");
   const [balances, setBalances] = useState<Balances | null>(null);
+  const [history, setHistory] = useState<Tx[]>([]);
   const [amount, setAmount] = useState("200");
   const [quote, setQuote] = useState<Quote | null>(null);
   const [busy, setBusy] = useState(false);
@@ -23,7 +26,9 @@ export default function WalletPage() {
 
   const refresh = useCallback(async (wa: string) => {
     try {
-      setBalances(await api.balance(wa));
+      const [bal, hist] = await Promise.all([api.balance(wa), api.history(wa)]);
+      setBalances(bal);
+      setHistory(hist);
     } catch {
       setBalances({ cIDR: "0", USDC: "0" });
     }
@@ -92,6 +97,7 @@ export default function WalletPage() {
       const res = await api.swap(waNumber, usdc);
       setBalances(res.balances);
       flash(quote ? `Exchanged! You saved ${idr(quote.savingsIdr)}` : "Exchanged!");
+      refresh(waNumber);
     } catch (e) {
       flash("Exchange failed: " + (e as Error).message);
     } finally {
@@ -231,6 +237,48 @@ export default function WalletPage() {
           {busy ? "Processing…" : "Exchange now"}
         </button>
       </section>
+
+      {history.length > 0 && (
+        <section className="animate-rise mt-6">
+          <h2 className="px-1 font-[family-name:var(--font-heading)] text-sm font-semibold text-muted-foreground">
+            Recent activity
+          </h2>
+          <div className="mt-2 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
+            {history.map((tx) => (
+              <div key={tx.id} className="flex items-center gap-3 px-4 py-3">
+                <div
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm ${
+                    tx.direction === "in" ? "bg-success-soft text-success" : "bg-muted text-foreground"
+                  }`}
+                >
+                  {tx.type === "swap" ? "⇄" : tx.type === "pay" ? "↑" : "↓"}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{tx.title}</p>
+                  {tx.hash && (
+                    <a
+                      href={EXPLORER + tx.hash}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-primary"
+                    >
+                      View on-chain ↗
+                    </a>
+                  )}
+                </div>
+                <span
+                  className={`shrink-0 font-[family-name:var(--font-mono)] text-sm font-semibold ${
+                    tx.direction === "in" ? "text-success" : "text-foreground"
+                  }`}
+                >
+                  {tx.direction === "in" ? "+" : "−"}
+                  {idr(tx.amountIdr)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {toast && (
         <div className="animate-rise fixed inset-x-0 bottom-6 mx-auto w-fit max-w-[90%] rounded-full bg-foreground px-5 py-3 text-center text-sm text-background shadow-xl">
