@@ -4,6 +4,7 @@ import Link from "next/link";
 import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { resolveWa } from "@/lib/session";
 
 const idr = (n: number) => "Rp " + new Intl.NumberFormat("id-ID").format(Math.round(n));
 
@@ -14,7 +15,7 @@ export default function CashoutPage() {
   const [error, setError] = useState<string | null>(null);
   const [ticket, setTicket] = useState<{ amountIdr: number; qr: string; payload: string } | null>(null);
 
-  useEffect(() => setWa(localStorage.getItem("castel_wa")), []);
+  useEffect(() => setWa(resolveWa()), []);
 
   async function request() {
     if (!wa) return;

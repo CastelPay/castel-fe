@@ -4,6 +4,7 @@ import { BrowserQRCodeReader, type IScannerControls } from "@zxing/browser";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { api, type Balances, type QrisInfo } from "@/lib/api";
+import { resolveWa } from "@/lib/session";
 
 const idr = (n: number) => "Rp " + new Intl.NumberFormat("id-ID").format(Math.round(n));
 const SAMPLE_QR =
@@ -24,7 +25,7 @@ export default function PayPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
 
-  useEffect(() => setWa(localStorage.getItem("castel_wa")), []);
+  useEffect(() => setWa(resolveWa()), []);
 
   useEffect(() => {
     if (stage !== "scan" || !videoRef.current) return;

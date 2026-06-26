@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api, type Balances, type Quote, type Tx } from "@/lib/api";
+import { resolveWa } from "@/lib/session";
 
 const EXPLORER = "https://stellar.expert/explorer/testnet/tx/";
 
@@ -20,7 +21,7 @@ export default function WalletPage() {
   const [toast, setToast] = useState<{ m: string; ok: boolean } | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem("castel_wa");
+    const saved = resolveWa();
     if (saved) setWaNumber(saved);
   }, []);
 
