@@ -17,7 +17,7 @@ export default function WalletPage() {
   const [amount, setAmount] = useState("200");
   const [quote, setQuote] = useState<Quote | null>(null);
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ m: string; ok: boolean } | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("castel_wa");
@@ -54,8 +54,8 @@ export default function WalletPage() {
     return () => clearTimeout(t);
   }, [amount]);
 
-  const flash = (m: string) => {
-    setToast(m);
+  const flash = (m: string, ok = true) => {
+    setToast({ m, ok });
     setTimeout(() => setToast(null), 3500);
   };
 
@@ -67,7 +67,7 @@ export default function WalletPage() {
       localStorage.setItem("castel_wa", phone.trim());
       setWaNumber(phone.trim());
     } catch (e) {
-      flash("Failed: is the backend running? (" + (e as Error).message + ")");
+      flash("Failed: is the backend running? (" + (e as Error).message + ")", false);
     } finally {
       setBusy(false);
     }
@@ -89,7 +89,7 @@ export default function WalletPage() {
     if (!waNumber) return;
     const usdc = Number(amount);
     if (!usdc || usdc > toNum(balances?.USDC ?? "0")) {
-      flash("Not enough USDC — top up first");
+      flash("Not enough USDC — top up first", false);
       return;
     }
     setBusy(true);
@@ -99,7 +99,7 @@ export default function WalletPage() {
       flash(quote ? `Exchanged! You saved ${idr(quote.savingsIdr)}` : "Exchanged!");
       refresh(waNumber);
     } catch (e) {
-      flash("Exchange failed: " + (e as Error).message);
+      flash("Exchange failed: " + (e as Error).message, false);
     } finally {
       setBusy(false);
     }
@@ -161,12 +161,21 @@ export default function WalletPage() {
 
       <section className="animate-rise mt-2 rounded-2xl bg-gradient-to-br from-primary to-primary-end p-6 text-primary-foreground shadow-lg">
         <p className="text-sm opacity-80">Digital rupiah balance</p>
-        <p className="mt-1 font-[family-name:var(--font-mono)] text-4xl font-bold tracking-tight">
-          {idr(cidr)}
-        </p>
-        <p className="mt-3 text-sm opacity-80">
-          <span className="font-[family-name:var(--font-mono)]">{usdc.toFixed(2)}</span> USDC available
-        </p>
+        {balances === null ? (
+          <>
+            <div className="mt-2 h-9 w-44 animate-pulse rounded-lg bg-white/25" />
+            <div className="mt-3 h-4 w-28 animate-pulse rounded bg-white/20" />
+          </>
+        ) : (
+          <>
+            <p className="mt-1 font-[family-name:var(--font-mono)] text-4xl font-bold tracking-tight">
+              {idr(cidr)}
+            </p>
+            <p className="mt-3 text-sm opacity-80">
+              <span className="font-[family-name:var(--font-mono)]">{usdc.toFixed(2)}</span> USDC available
+            </p>
+          </>
+        )}
         <button
           onClick={topup}
           disabled={busy}
@@ -201,6 +210,26 @@ export default function WalletPage() {
           onChange={(e) => setAmount(e.target.value)}
           className="mt-1 w-full rounded-xl border border-border bg-background px-4 py-3 font-[family-name:var(--font-mono)] text-lg outline-none focus:border-primary"
         />
+        <div className="mt-2 flex gap-2">
+          {[50, 100, 200].map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setAmount(String(v))}
+              className="rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground transition active:scale-95"
+            >
+              ${v}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setAmount(String(Math.floor(usdc)))}
+            disabled={!usdc}
+            className="rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground transition active:scale-95 disabled:opacity-40"
+          >
+            Max
+          </button>
+        </div>
 
         {quote && (
           <div className="mt-4 space-y-3 rounded-xl bg-muted/60 p-4">
@@ -281,8 +310,12 @@ export default function WalletPage() {
       )}
 
       {toast && (
-        <div className="animate-rise fixed inset-x-0 bottom-6 mx-auto w-fit max-w-[90%] rounded-full bg-foreground px-5 py-3 text-center text-sm text-background shadow-xl">
-          {toast}
+        <div
+          className={`animate-rise fixed inset-x-0 bottom-6 mx-auto w-fit max-w-[90%] rounded-full px-5 py-3 text-center text-sm shadow-xl ${
+            toast.ok ? "bg-foreground text-background" : "bg-destructive text-white"
+          }`}
+        >
+          {toast.m}
         </div>
       )}
     </main>
