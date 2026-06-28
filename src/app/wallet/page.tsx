@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api, type Balances, type Quote, type Tx } from "@/lib/api";
 import { resolveWa } from "@/lib/session";
+import { idr } from "@/lib/format";
 
 const EXPLORER = "https://stellar.expert/explorer/testnet/tx/";
 
-const idr = (n: number) => "Rp " + new Intl.NumberFormat("id-ID").format(Math.round(n));
 const toNum = (s: string) => Number(s);
 
 export default function WalletPage() {
@@ -41,11 +41,11 @@ export default function WalletPage() {
 
   useEffect(() => {
     const usdc = Number(amount);
-    if (!usdc || usdc <= 0) {
-      setQuote(null);
-      return;
-    }
     const t = setTimeout(async () => {
+      if (!usdc || usdc <= 0) {
+        setQuote(null);
+        return;
+      }
       try {
         setQuote(await api.quote(usdc));
       } catch {

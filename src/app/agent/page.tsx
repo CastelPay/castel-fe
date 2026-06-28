@@ -3,8 +3,7 @@
 import { BrowserQRCodeReader, type IScannerControls } from "@zxing/browser";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
-
-const idr = (n: number) => "Rp " + new Intl.NumberFormat("id-ID").format(Math.round(n));
+import { idr } from "@/lib/format";
 
 type Ticket = { escrowId: number; codeHex: string; amountIdr: number; agentReceives: number };
 type Stage = "scan" | "confirm" | "done";

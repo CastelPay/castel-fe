@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { api, type Balances, type QrisInfo } from "@/lib/api";
 import { resolveWa } from "@/lib/session";
+import { idr } from "@/lib/format";
 
-const idr = (n: number) => "Rp " + new Intl.NumberFormat("id-ID").format(Math.round(n));
 const SAMPLE_QR =
   "00020101021253033605405850005802ID5916Warung Made Bali6004Bali6304ABCD";
 

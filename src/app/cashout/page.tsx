@@ -5,8 +5,7 @@ import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { resolveWa } from "@/lib/session";
-
-const idr = (n: number) => "Rp " + new Intl.NumberFormat("id-ID").format(Math.round(n));
+import { idr } from "@/lib/format";
 
 export default function CashoutPage() {
   const [wa, setWa] = useState<string | null>(null);
