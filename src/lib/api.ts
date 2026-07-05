@@ -29,7 +29,7 @@ export type PayResult = {
 
 export type Tx = {
   id: number;
-  type: "swap" | "pay" | "cashout";
+  type: "swap" | "pay" | "cashout" | "deposit";
   title: string;
   amountIdr: number;
   direction: "in" | "out";
@@ -58,6 +58,13 @@ export const api = {
   quote: (usdc: number) => req<Quote>(`/fx/quote?usdc=${usdc}`),
   fund: (waNumber: string, usdc: number) =>
     req<Balances>("/fund", { method: "POST", body: { waNumber, usdc } }),
+  depositCreate: (waNumber: string, usd: number) =>
+    req<{ url: string }>("/deposit/create", { method: "POST", body: { waNumber, usd } }),
+  depositConfirm: (sessionId: string) =>
+    req<{ credited: boolean; usd: number; balances: Balances }>("/deposit/confirm", {
+      method: "POST",
+      body: { sessionId },
+    }),
   swap: (waNumber: string, usdc: number) =>
     req<{ hash: string; balances: Balances }>("/fx/swap", { method: "POST", body: { waNumber, usdc } }),
   decodeQris: (payload: string) =>

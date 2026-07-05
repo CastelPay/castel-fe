@@ -17,6 +17,8 @@ export default function WalletPage() {
   const [history, setHistory] = useState<Tx[]>([]);
   const [amount, setAmount] = useState("200");
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [depAmt, setDepAmt] = useState("200");
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<{ m: string; ok: boolean } | null>(null);
 
@@ -60,6 +62,35 @@ export default function WalletPage() {
     setTimeout(() => setToast(null), 3500);
   };
 
+  // Back from Stripe Checkout: confirm the session, then credit is verified server-side.
+  useEffect(() => {
+    const dep = new URLSearchParams(window.location.search).get("deposit");
+    if (!dep) return;
+    const wa = resolveWa();
+    const cleanUrl = () =>
+      window.history.replaceState({}, "", "/wallet" + (wa ? `?wa=${encodeURIComponent(wa)}` : ""));
+    if (dep === "cancel") {
+      flash("Deposit cancelled", false);
+      cleanUrl();
+      return;
+    }
+    (async () => {
+      setBusy(true);
+      try {
+        const res = await api.depositConfirm(dep);
+        setBalances(res.balances);
+        flash(`Deposited $${res.usd} — USDC added to your wallet`);
+        if (wa) refresh(wa);
+      } catch (e) {
+        flash("Couldn't confirm deposit: " + (e as Error).message, false);
+      } finally {
+        setBusy(false);
+        cleanUrl();
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function onboard() {
     if (!phone.trim()) return;
     setBusy(true);
@@ -82,6 +113,23 @@ export default function WalletPage() {
       await refresh(waNumber);
       flash("Topped up 200 USDC");
     } finally {
+      setBusy(false);
+    }
+  }
+
+  async function startDeposit() {
+    if (!waNumber) return;
+    const usd = Number(depAmt);
+    if (!usd || usd <= 0) {
+      flash("Enter an amount", false);
+      return;
+    }
+    setBusy(true);
+    try {
+      const { url } = await api.depositCreate(waNumber, usd);
+      window.location.href = url;
+    } catch (e) {
+      flash("Couldn't start deposit: " + (e as Error).message, false);
       setBusy(false);
     }
   }
@@ -177,13 +225,60 @@ export default function WalletPage() {
             </p>
           </>
         )}
-        <button
-          onClick={topup}
-          disabled={busy}
-          className="mt-4 rounded-full bg-white/20 px-4 py-2 text-sm font-medium backdrop-blur transition active:scale-95 disabled:opacity-50"
-        >
-          + Top up 200 USDC (demo)
-        </button>
+        <div className="mt-4">
+          {!showDeposit ? (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowDeposit(true)}
+                disabled={busy}
+                className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-primary shadow transition active:scale-95 disabled:opacity-50"
+              >
+                + Deposit USD
+              </button>
+              <button
+                onClick={topup}
+                disabled={busy}
+                className="text-xs text-white/70 underline underline-offset-2 transition active:scale-95 disabled:opacity-50"
+              >
+                instant demo
+              </button>
+            </div>
+          ) : (
+            <div className="rounded-xl bg-white/15 p-3 backdrop-blur">
+              <div className="flex items-center gap-2">
+                <span className="font-[family-name:var(--font-mono)] text-lg">$</span>
+                <input
+                  type="number"
+                  value={depAmt}
+                  onChange={(e) => setDepAmt(e.target.value)}
+                  className="w-full min-w-0 rounded-lg bg-white/90 px-3 py-2 font-[family-name:var(--font-mono)] text-lg text-foreground outline-none"
+                />
+              </div>
+              <div className="mt-2 flex gap-2">
+                {[50, 100, 200].map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setDepAmt(String(v))}
+                    className="rounded-full bg-white/20 px-3 py-1 text-xs font-medium transition active:scale-95"
+                  >
+                    ${v}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={startDeposit}
+                disabled={busy}
+                className="mt-3 w-full rounded-full bg-white py-2.5 text-sm font-semibold text-primary shadow transition active:scale-[0.98] disabled:opacity-50"
+              >
+                {busy ? "Redirecting…" : "Pay with card →"}
+              </button>
+              <p className="mt-2 text-center text-[11px] text-white/70">
+                Test card 4242 4242 4242 4242 · any future date · any CVC
+              </p>
+            </div>
+          )}
+        </div>
       </section>
 
       <div className="animate-rise mt-4 grid grid-cols-2 gap-3">
@@ -281,7 +376,13 @@ export default function WalletPage() {
                     tx.direction === "in" ? "bg-success-soft text-success" : "bg-muted text-foreground"
                   }`}
                 >
-                  {tx.type === "swap" ? "⇄" : tx.type === "pay" ? "↑" : "↓"}
+                  {tx.type === "swap"
+                    ? "⇄"
+                    : tx.type === "pay"
+                      ? "↑"
+                      : tx.type === "deposit"
+                        ? "＄"
+                        : "↓"}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{tx.title}</p>
@@ -302,7 +403,7 @@ export default function WalletPage() {
                   }`}
                 >
                   {tx.direction === "in" ? "+" : "−"}
-                  {idr(tx.amountIdr)}
+                  {tx.type === "deposit" ? `$${tx.amountIdr}` : idr(tx.amountIdr)}
                 </span>
               </div>
             ))}
