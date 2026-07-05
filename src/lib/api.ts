@@ -19,11 +19,16 @@ export type QrisInfo = {
   isStatic: boolean;
 };
 
+export type Settlement =
+  | { id: string; status: string; amount: number; channel: string }
+  | { error: string };
+
 export type PayResult = {
   merchant: string;
   city: string;
   amountIdr: number;
   hash: string;
+  settlement: Settlement | null;
   balances: Balances;
 };
 

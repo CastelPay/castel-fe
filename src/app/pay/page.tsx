@@ -3,7 +3,7 @@
 import { BrowserQRCodeReader, type IScannerControls } from "@zxing/browser";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { api, type Balances, type QrisInfo } from "@/lib/api";
+import { api, type Balances, type PayResult, type QrisInfo } from "@/lib/api";
 import { resolveWa } from "@/lib/session";
 import { idr } from "@/lib/format";
 
@@ -20,7 +20,12 @@ export default function PayPage() {
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [receipt, setReceipt] = useState<{ merchant: string; amountIdr: number; balances: Balances } | null>(null);
+  const [receipt, setReceipt] = useState<{
+    merchant: string;
+    amountIdr: number;
+    balances: Balances;
+    settlement: PayResult["settlement"];
+  } | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
@@ -69,7 +74,12 @@ export default function PayPage() {
     setError(null);
     try {
       const res = await api.pay(wa, payload, info.amount ?? Number(amount));
-      setReceipt({ merchant: res.merchant, amountIdr: res.amountIdr, balances: res.balances });
+      setReceipt({
+        merchant: res.merchant,
+        amountIdr: res.amountIdr,
+        balances: res.balances,
+        settlement: res.settlement,
+      });
       setStage("done");
     } catch (e) {
       setError((e as Error).message);
@@ -207,6 +217,22 @@ export default function PayPage() {
                 {idr(Number(receipt.balances.cIDR))}
               </span>
             </div>
+            {receipt.settlement && "id" in receipt.settlement && (
+              <div className="mt-3 border-t border-border pt-3 text-left">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Merchant settlement</span>
+                  <span className="rounded-full bg-success-soft px-2 py-0.5 text-xs font-medium text-success">
+                    {receipt.settlement.status}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  IDR sent via Xendit · {receipt.settlement.channel} ·{" "}
+                  <span className="font-[family-name:var(--font-mono)]">
+                    {receipt.settlement.id.slice(0, 12)}…
+                  </span>
+                </p>
+              </div>
+            )}
           </div>
 
           <button
