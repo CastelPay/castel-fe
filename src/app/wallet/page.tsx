@@ -91,6 +91,11 @@ export default function WalletPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Opened from the WhatsApp "topup" link — jump straight to the deposit panel.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("topup")) setShowDeposit(true);
+  }, []);
+
   async function onboard() {
     if (!phone.trim()) return;
     setBusy(true);
