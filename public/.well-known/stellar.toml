@@ -1,0 +1,53 @@
+VERSION="2.0.0"
+NETWORK_PASSPHRASE="Test SDF Network ; September 2015"
+
+HORIZON_URL="https://horizon-testnet.stellar.org"
+
+ACCOUNTS=[
+  "GCH4XMY2LB67S2PYZUU5U23MCAB5DLUEQKGE4FRVF5NAJUMGC4SNTYEU",
+  "GB2VUEE7EHUHMDISUUB6CCPT7TWCOYVZLZS5STMWULZVQAUDLB562FAY",
+  "GCBIVPK2VLMZ5ZHWP4KDA6GGUDJW5BXCWHPOD5XGCNZBWENPZER6NUAY"
+]
+
+[DOCUMENTATION]
+ORG_NAME="Castel"
+ORG_DBA="Castel — Cash on Stellar"
+ORG_URL="https://castelpay.vercel.app"
+ORG_DESCRIPTION="""
+Castel gives foreign visitors to Bali a way to pay Indonesian QRIS merchants and to
+withdraw rupiah in cash, without an Indonesian bank account, SIM card or national ID.
+Visitors are onboarded over WhatsApp; funds arrive as USDC on Stellar and are converted
+to rupiah through Stellar's built-in DEX using a path payment. Merchants are always
+settled in Indonesian rupiah through a licensed payment provider — never in a digital
+asset. Cash withdrawal is escrowed on-chain with a Soroban contract and paid out by
+partner money changers acting as agents.
+"""
+ORG_GITHUB="CastelPay"
+ORG_SUPPORT_EMAIL="samuelgeraldy01@gmail.com"
+ORG_OFFICIAL_EMAIL="samuelgeraldy01@gmail.com"
+
+[[CURRENCIES]]
+code="cIDR"
+issuer="GCH4XMY2LB67S2PYZUU5U23MCAB5DLUEQKGE4FRVF5NAJUMGC4SNTYEU"
+display_decimals=2
+name="Castel Rupiah"
+desc="""
+An Indonesian rupiah unit of account on Stellar, used as the settlement leg between a
+visitor's deposit and a rupiah payout to an Indonesian merchant or cash agent.
+"""
+conditions="""
+TESTNET ONLY. cIDR is issued on the Stellar test network for this prototype and carries
+no fiat backing and no redemption right. In production the issuer is intended to be an
+OJK-licensed provider holding rupiah reserves 1:1, and the issuer account already carries
+Stellar's native compliance flags (AUTH_REVOCABLE, AUTH_CLAWBACK_ENABLED) so that
+balances can be frozen or reversed in response to fraud or a lawful order.
+"""
+is_asset_anchored=true
+anchor_asset_type="fiat"
+anchor_asset="IDR"
+status="test"
+
+[[PRINCIPALS]]
+name="Samuel Geraldy"
+email="samuelgeraldy01@gmail.com"
+github="YohanesVito"
