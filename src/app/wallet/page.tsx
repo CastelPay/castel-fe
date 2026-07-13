@@ -28,12 +28,21 @@ export default function WalletPage() {
   }, []);
 
   const refresh = useCallback(async (wa: string) => {
-    try {
+    const load = async () => {
       const [bal, hist] = await Promise.all([api.balance(wa), api.history(wa)]);
       setBalances(bal);
       setHistory(hist);
+    };
+    try {
+      await load();
     } catch {
-      setBalances({ cIDR: "0", USDC: "0" });
+      try {
+        // A saved session can outlive the server's record of it. Onboard is idempotent.
+        await api.onboard(wa);
+        await load();
+      } catch {
+        setBalances({ cIDR: "0", USDC: "0" });
+      }
     }
   }, []);
 
