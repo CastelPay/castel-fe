@@ -19,9 +19,8 @@ export type Limits = {
   spentIdr: number;
   spendCapIdr: number;
   remainingIdr: number;
-  depositedUsd: number;
-  depositCapUsd: number;
-  remainingUsd: number;
+  depositedIdr: number;
+  depositCapIdr: number;
   windowDays: number;
 };
 
@@ -108,10 +107,14 @@ export const api = {
   depositCreate: (usd: number) =>
     req<{ url: string }>("/deposit/create", { method: "POST", body: { usd } }),
   depositConfirm: (sessionId: string) =>
-    req<{ credited: boolean; usd: number; balances: Balances }>("/deposit/confirm", {
-      method: "POST",
-      body: { sessionId },
-    }),
+    req<{
+      credited: boolean;
+      usd: number;
+      cidr?: number;
+      savingsIdr?: number;
+      exchangeFailed?: string;
+      balances: Balances;
+    }>("/deposit/confirm", { method: "POST", body: { sessionId } }),
   swap: (usdc: number) =>
     req<{ hash: string; quote: Quote; balances: Balances }>("/fx/swap", {
       method: "POST",

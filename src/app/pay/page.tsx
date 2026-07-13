@@ -16,6 +16,7 @@ type Stage = "scan" | "review" | "done";
 export default function PayPage() {
   const [wa, setWa] = useState<string | null>(null);
   const [askPin, setAskPin] = useState(false);
+  const [balance, setBalance] = useState<number | null>(null);
   const [stage, setStage] = useState<Stage>("scan");
   const [payload, setPayload] = useState("");
   const [info, setInfo] = useState<QrisInfo | null>(null);
@@ -32,7 +33,13 @@ export default function PayPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
 
-  useEffect(() => setWa(getToken()), []);
+  useEffect(() => {
+    setWa(getToken());
+    api
+      .balance()
+      .then((b) => setBalance(Number(b.cIDR)))
+      .catch(() => setBalance(null));
+  }, []);
 
   useEffect(() => {
     if (stage !== "scan" || !videoRef.current) return;
@@ -154,7 +161,10 @@ export default function PayPage() {
         </div>
       )}
 
-      {stage === "review" && info && (
+      {stage === "review" && info && (() => {
+        const due = info.amount ?? (Number(amount) || 0);
+        const short = balance !== null && due > 0 && balance < due;
+        return (
         <div className="animate-rise">
           <div className="rounded-2xl border border-border bg-card p-6 text-center shadow-sm">
             <p className="text-sm text-muted-foreground">Paying</p>
@@ -183,20 +193,37 @@ export default function PayPage() {
 
           {error && <p className="mt-3 text-center text-sm text-destructive">{error}</p>}
 
-          <button
-            onClick={() => {
-              setError(null);
-              setAskPin(true);
-            }}
-            disabled={busy || (info.isStatic && !Number(amount))}
-            className="mt-5 w-full rounded-full bg-gradient-to-r from-primary to-primary-end py-3.5 font-semibold text-primary-foreground shadow-md transition active:scale-[0.98] disabled:opacity-50"
-          >
-            {busy ? "Paying…" : `Pay ${idr(info.amount ?? (Number(amount) || 0))}`}
-          </button>
+          {short ? (
+            <>
+              <div className="mt-5 rounded-2xl border border-warning/40 bg-warning-soft p-4 text-center">
+                <p className="text-sm font-semibold">Not enough balance</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  You have {idr(balance ?? 0)} — you need {idr(due)}.
+                </p>
+              </div>
+              <Link
+                href="/wallet?topup=1"
+                className="mt-3 block w-full rounded-full bg-gradient-to-r from-primary to-primary-end py-3.5 text-center font-semibold text-primary-foreground shadow-md transition active:scale-[0.98]"
+              >
+                Top up with card →
+              </Link>
+            </>
+          ) : (
+            <button
+              onClick={() => {
+                setError(null);
+                setAskPin(true);
+              }}
+              disabled={busy || (info.isStatic && !Number(amount))}
+              className="mt-5 w-full rounded-full bg-gradient-to-r from-primary to-primary-end py-3.5 font-semibold text-primary-foreground shadow-md transition active:scale-[0.98] disabled:opacity-50"
+            >
+              {busy ? "Paying…" : `Pay ${idr(due)}`}
+            </button>
+          )}
 
           {askPin && (
             <PinPrompt
-              title={`Pay ${idr(info.amount ?? (Number(amount) || 0))}`}
+              title={`Pay ${idr(due)}`}
               subtitle={`To ${info.merchantName}. Enter your PIN to authorise.`}
               busy={busy}
               error={error}
@@ -214,7 +241,8 @@ export default function PayPage() {
             Cancel
           </button>
         </div>
-      )}
+        );
+      })()}
 
       {stage === "done" && receipt && (
         <div className="animate-rise flex flex-col items-center pt-10 text-center">

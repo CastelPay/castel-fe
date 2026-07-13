@@ -23,6 +23,7 @@ export default function WalletPage() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [showDeposit, setShowDeposit] = useState(false);
   const [depAmt, setDepAmt] = useState("200");
+  const [depQuote, setDepQuote] = useState<Quote | null>(null);
   const [askPin, setAskPin] = useState(false);
   const [pinError, setPinError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -85,6 +86,22 @@ export default function WalletPage() {
     return () => clearTimeout(t);
   }, [amount]);
 
+  useEffect(() => {
+    const usd = Number(depAmt);
+    const t = setTimeout(async () => {
+      if (!usd || usd <= 0) {
+        setDepQuote(null);
+        return;
+      }
+      try {
+        setDepQuote(await api.quote(usd));
+      } catch {
+        setDepQuote(null);
+      }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [depAmt]);
+
   const flash = (m: string, ok = true) => {
     setToast({ m, ok });
     setTimeout(() => setToast(null), 3500);
@@ -107,7 +124,12 @@ export default function WalletPage() {
       try {
         const res = await api.depositConfirm(dep);
         setBalances(res.balances);
-        flash(`Deposited $${res.usd} — USDC added to your wallet`);
+        flash(
+          res.cidr
+            ? `${idr(res.cidr)} added — ${idr(res.savingsIdr ?? 0)} more than a money changer`
+            : `$${res.usd} added — exchange pending`,
+          !res.exchangeFailed,
+        );
         refresh();
       } catch (e) {
         flash("Couldn't confirm deposit: " + (e as Error).message, false);
@@ -258,7 +280,7 @@ export default function WalletPage() {
       )}
 
       <section className="animate-rise mt-2 rounded-2xl bg-gradient-to-br from-primary to-primary-end p-6 text-primary-foreground shadow-lg">
-        <p className="text-sm opacity-80">Digital rupiah balance</p>
+        <p className="text-sm opacity-80">Your balance</p>
         {balances === null ? (
           <>
             <div className="mt-2 h-9 w-44 animate-pulse rounded-lg bg-white/25" />
@@ -269,9 +291,12 @@ export default function WalletPage() {
             <p className="mt-1 font-[family-name:var(--font-mono)] text-4xl font-bold tracking-tight">
               {idr(cidr)}
             </p>
-            <p className="mt-3 text-sm opacity-80">
-              <span className="font-[family-name:var(--font-mono)]">{usdc.toFixed(2)}</span> USDC available
-            </p>
+            {usdc > 0 && (
+              <p className="mt-3 text-sm opacity-80">
+                <span className="font-[family-name:var(--font-mono)]">{usdc.toFixed(2)}</span> USDC
+                waiting to be exchanged
+              </p>
+            )}
           </>
         )}
         <div className="mt-4">
@@ -282,7 +307,7 @@ export default function WalletPage() {
                 disabled={busy}
                 className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-primary shadow transition active:scale-95 disabled:opacity-50"
               >
-                + Deposit USD
+                + Add money
               </button>
               <button
                 onClick={topup}
@@ -315,12 +340,28 @@ export default function WalletPage() {
                   </button>
                 ))}
               </div>
+              {depQuote && (
+                <div className="mt-3 rounded-lg bg-white/20 px-3 py-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="opacity-80">You get</span>
+                    <span className="font-[family-name:var(--font-mono)] font-bold">
+                      {idr(depQuote.cidrOut)}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between text-xs opacity-80">
+                    <span>vs money changer</span>
+                    <span className="font-[family-name:var(--font-mono)]">
+                      +{idr(depQuote.savingsIdr)}
+                    </span>
+                  </div>
+                </div>
+              )}
               <button
                 onClick={startDeposit}
                 disabled={busy}
                 className="mt-3 w-full rounded-full bg-white py-2.5 text-sm font-semibold text-primary shadow transition active:scale-[0.98] disabled:opacity-50"
               >
-                {busy ? "Redirecting…" : "Pay with card →"}
+                {busy ? "Redirecting…" : "Top up with card →"}
               </button>
               <p className="mt-2 text-center text-[11px] text-white/70">
                 Test card 4242 4242 4242 4242 · any future date · any CVC
@@ -345,8 +386,12 @@ export default function WalletPage() {
         </Link>
       </div>
 
+      {usdc > 0 && (
       <section className="animate-rise mt-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
         <h2 className="font-[family-name:var(--font-heading)] text-lg font-semibold">Exchange to rupiah</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Your card top-up didn&apos;t finish converting. Exchange it here.
+        </p>
 
         <label className="mt-4 block text-sm text-muted-foreground">USDC amount</label>
         <input
@@ -411,6 +456,7 @@ export default function WalletPage() {
           {busy ? "Processing…" : "Exchange now"}
         </button>
       </section>
+      )}
 
       {limits && (
         <section className="animate-rise mt-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
@@ -453,7 +499,7 @@ export default function WalletPage() {
                     : tx.type === "pay"
                       ? "↑"
                       : tx.type === "deposit"
-                        ? "＄"
+                        ? "＋"
                         : "↓"}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -475,7 +521,7 @@ export default function WalletPage() {
                   }`}
                 >
                   {tx.direction === "in" ? "+" : "−"}
-                  {tx.type === "deposit" ? `$${tx.amountIdr}` : idr(tx.amountIdr)}
+                  {idr(tx.amountIdr)}
                 </span>
               </div>
             ))}
