@@ -13,6 +13,18 @@ export type Quote = {
   savingsIdr: number;
 };
 
+export type Limits = {
+  tier: number;
+  tierName: string;
+  spentIdr: number;
+  spendCapIdr: number;
+  remainingIdr: number;
+  depositedUsd: number;
+  depositCapUsd: number;
+  remainingUsd: number;
+  windowDays: number;
+};
+
 export type Session = { token: string; waNumber: string; publicKey: string; hasPin: boolean };
 
 export type QrisInfo = {
@@ -88,6 +100,7 @@ export const api = {
   me: () => req<{ waNumber: string; publicKey: string; hasPin: boolean }>("/me"),
   setPin: (pin: string) => req<{ ok: boolean }>("/me/pin", { method: "POST", body: { pin } }),
   balance: () => req<Balances>("/me/balance"),
+  limits: () => req<Limits>("/me/limits"),
   history: () => req<Tx[]>("/me/history"),
 
   quote: (usdc: number) => req<Quote>(`/fx/quote?usdc=${usdc}`),

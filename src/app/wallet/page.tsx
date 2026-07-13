@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { api, type Balances, type Quote, type Tx } from "@/lib/api";
+import { api, type Balances, type Limits, type Quote, type Tx } from "@/lib/api";
 import { clearSession, getToken, setToken, takeLinkToken } from "@/lib/session";
 import { PinPrompt } from "@/components/PinPrompt";
 import { SignIn } from "@/components/SignIn";
@@ -18,6 +18,7 @@ export default function WalletPage() {
   const [ready, setReady] = useState(false);
   const [balances, setBalances] = useState<Balances | null>(null);
   const [history, setHistory] = useState<Tx[]>([]);
+  const [limits, setLimits] = useState<Limits | null>(null);
   const [amount, setAmount] = useState("200");
   const [quote, setQuote] = useState<Quote | null>(null);
   const [showDeposit, setShowDeposit] = useState(false);
@@ -55,9 +56,10 @@ export default function WalletPage() {
 
   const refresh = useCallback(async () => {
     try {
-      const [bal, hist] = await Promise.all([api.balance(), api.history()]);
+      const [bal, hist, lim] = await Promise.all([api.balance(), api.history(), api.limits()]);
       setBalances(bal);
       setHistory(hist);
+      setLimits(lim);
     } catch {
       setBalances({ cIDR: "0", USDC: "0" });
     }
@@ -409,6 +411,29 @@ export default function WalletPage() {
           {busy ? "Processing…" : "Exchange now"}
         </button>
       </section>
+
+      {limits && (
+        <section className="animate-rise mt-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">
+              Tier {limits.tier} · {limits.tierName}
+            </span>
+            <span className="text-xs text-muted-foreground">{limits.windowDays}-day limit</span>
+          </div>
+          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary transition-all"
+              style={{
+                width: `${Math.min(100, (limits.spentIdr / limits.spendCapIdr) * 100)}%`,
+              }}
+            />
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {idr(limits.spentIdr)} of {idr(limits.spendCapIdr)} spent · verify your passport to
+            raise it
+          </p>
+        </section>
+      )}
 
       {history.length > 0 && (
         <section className="animate-rise mt-6">
