@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api, type Balances, type Quote, type Tx } from "@/lib/api";
-import { resolveWa } from "@/lib/session";
+import { clearSession, getToken, setToken, takeLinkToken } from "@/lib/session";
+import { PinPrompt } from "@/components/PinPrompt";
+import { SignIn } from "@/components/SignIn";
 import { idr } from "@/lib/format";
 
 const EXPLORER = "https://stellar.expert/explorer/testnet/tx/";
@@ -12,42 +14,57 @@ const toNum = (s: string) => Number(s);
 
 export default function WalletPage() {
   const [waNumber, setWaNumber] = useState<string | null>(null);
-  const [phone, setPhone] = useState("");
+  const [hasPin, setHasPin] = useState(true);
+  const [ready, setReady] = useState(false);
   const [balances, setBalances] = useState<Balances | null>(null);
   const [history, setHistory] = useState<Tx[]>([]);
   const [amount, setAmount] = useState("200");
   const [quote, setQuote] = useState<Quote | null>(null);
   const [showDeposit, setShowDeposit] = useState(false);
   const [depAmt, setDepAmt] = useState("200");
+  const [askPin, setAskPin] = useState(false);
+  const [pinError, setPinError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<{ m: string; ok: boolean } | null>(null);
 
+  // Either we arrived from a WhatsApp magic link, or we already hold a session.
   useEffect(() => {
-    const saved = resolveWa();
-    if (saved) setWaNumber(saved);
+    (async () => {
+      const link = takeLinkToken();
+      try {
+        if (link) {
+          const s = await api.authExchange(link);
+          setToken(s.token);
+          const url = new URL(window.location.href);
+          url.searchParams.delete("t");
+          window.history.replaceState({}, "", url.pathname + url.search);
+          setWaNumber(s.waNumber ?? null);
+          setHasPin(s.hasPin);
+        } else if (getToken()) {
+          const me = await api.me();
+          setWaNumber(me.waNumber);
+          setHasPin(me.hasPin);
+        }
+      } catch {
+        clearSession();
+      } finally {
+        setReady(true);
+      }
+    })();
   }, []);
 
-  const refresh = useCallback(async (wa: string) => {
-    const load = async () => {
-      const [bal, hist] = await Promise.all([api.balance(wa), api.history(wa)]);
+  const refresh = useCallback(async () => {
+    try {
+      const [bal, hist] = await Promise.all([api.balance(), api.history()]);
       setBalances(bal);
       setHistory(hist);
-    };
-    try {
-      await load();
     } catch {
-      try {
-        // A saved session can outlive the server's record of it. Onboard is idempotent.
-        await api.onboard(wa);
-        await load();
-      } catch {
-        setBalances({ cIDR: "0", USDC: "0" });
-      }
+      setBalances({ cIDR: "0", USDC: "0" });
     }
   }, []);
 
   useEffect(() => {
-    if (waNumber) refresh(waNumber);
+    if (waNumber) refresh();
   }, [waNumber, refresh]);
 
   useEffect(() => {
@@ -72,12 +89,12 @@ export default function WalletPage() {
   };
 
   // Back from Stripe Checkout: confirm the session, then credit is verified server-side.
+  // Waits for `ready` — confirming needs the session token we may still be exchanging for.
   useEffect(() => {
+    if (!ready || !waNumber) return;
     const dep = new URLSearchParams(window.location.search).get("deposit");
     if (!dep) return;
-    const wa = resolveWa();
-    const cleanUrl = () =>
-      window.history.replaceState({}, "", "/wallet" + (wa ? `?wa=${encodeURIComponent(wa)}` : ""));
+    const cleanUrl = () => window.history.replaceState({}, "", "/wallet");
     if (dep === "cancel") {
       flash("Deposit cancelled", false);
       cleanUrl();
@@ -89,7 +106,7 @@ export default function WalletPage() {
         const res = await api.depositConfirm(dep);
         setBalances(res.balances);
         flash(`Deposited $${res.usd} — USDC added to your wallet`);
-        if (wa) refresh(wa);
+        refresh();
       } catch (e) {
         flash("Couldn't confirm deposit: " + (e as Error).message, false);
       } finally {
@@ -98,41 +115,27 @@ export default function WalletPage() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ready, waNumber]);
 
   // Opened from the WhatsApp "topup" link — jump straight to the deposit panel.
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("topup")) setShowDeposit(true);
   }, []);
 
-  async function onboard() {
-    if (!phone.trim()) return;
-    setBusy(true);
-    try {
-      await api.onboard(phone.trim());
-      localStorage.setItem("castel_wa", phone.trim());
-      setWaNumber(phone.trim());
-    } catch (e) {
-      flash("Failed: is the backend running? (" + (e as Error).message + ")", false);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function topup() {
-    if (!waNumber) return;
     setBusy(true);
     try {
-      await api.fund(waNumber, 200);
-      await refresh(waNumber);
+      await api.fund(200);
+      await refresh();
       flash("Topped up 200 USDC");
+    } catch (e) {
+      flash("Top-up failed: " + (e as Error).message, false);
     } finally {
       setBusy(false);
     }
   }
 
   async function startDeposit() {
-    if (!waNumber) return;
     const usd = Number(depAmt);
     if (!usd || usd <= 0) {
       flash("Enter an amount", false);
@@ -140,7 +143,7 @@ export default function WalletPage() {
     }
     setBusy(true);
     try {
-      const { url } = await api.depositCreate(waNumber, usd);
+      const { url } = await api.depositCreate(usd);
       window.location.href = url;
     } catch (e) {
       flash("Couldn't start deposit: " + (e as Error).message, false);
@@ -149,7 +152,6 @@ export default function WalletPage() {
   }
 
   async function swap() {
-    if (!waNumber) return;
     const usdc = Number(amount);
     if (!usdc || usdc > toNum(balances?.USDC ?? "0")) {
       flash("Not enough USDC — top up first", false);
@@ -157,10 +159,10 @@ export default function WalletPage() {
     }
     setBusy(true);
     try {
-      const res = await api.swap(waNumber, usdc);
+      const res = await api.swap(usdc);
       setBalances(res.balances);
-      flash(quote ? `Exchanged! You saved ${idr(quote.savingsIdr)}` : "Exchanged!");
-      refresh(waNumber);
+      flash(`Exchanged! You saved ${idr(res.quote.savingsIdr)}`);
+      refresh();
     } catch (e) {
       flash("Exchange failed: " + (e as Error).message, false);
     } finally {
@@ -168,37 +170,37 @@ export default function WalletPage() {
     }
   }
 
+  async function createPin(pin: string) {
+    setBusy(true);
+    setPinError(null);
+    try {
+      await api.setPin(pin);
+      setHasPin(true);
+      setAskPin(false);
+      flash("PIN set — you can now pay and cash out");
+    } catch (e) {
+      setPinError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!ready) {
+    return (
+      <main className="flex min-h-dvh items-center justify-center">
+        <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
+      </main>
+    );
+  }
+
   if (!waNumber) {
     return (
-      <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-6">
-        <div className="animate-rise">
-          <h1 className="font-[family-name:var(--font-heading)] text-4xl font-bold tracking-tight">
-            Castel
-          </h1>
-          <p className="mt-2 text-muted-foreground">
-            Fair-rate digital rupiah for your trip to Bali. No bank account needed.
-          </p>
-          <div className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-sm">
-            <label className="text-sm font-medium">Your WhatsApp number</label>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+62 812..."
-              className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 font-[family-name:var(--font-mono)] outline-none focus:border-primary"
-            />
-            <button
-              onClick={onboard}
-              disabled={busy}
-              className="mt-4 w-full rounded-full bg-gradient-to-r from-primary to-primary-end py-3 font-semibold text-primary-foreground shadow-md transition active:scale-[0.98] disabled:opacity-50"
-            >
-              {busy ? "Creating wallet…" : "Get started"}
-            </button>
-          </div>
-          <p className="mt-4 text-center text-xs text-muted-foreground">
-            Your Stellar wallet is created automatically — no install, no seed phrase.
-          </p>
-        </div>
-      </main>
+      <SignIn
+        onSignedIn={(s) => {
+          setWaNumber(s.waNumber ?? null);
+          setHasPin(s.hasPin);
+        }}
+      />
     );
   }
 
@@ -212,7 +214,7 @@ export default function WalletPage() {
           <span className="font-[family-name:var(--font-heading)] text-xl font-bold">Castel</span>
           <button
             onClick={() => {
-              localStorage.removeItem("castel_wa");
+              clearSession();
               setWaNumber(null);
             }}
             className="text-xs text-muted-foreground"
@@ -221,6 +223,37 @@ export default function WalletPage() {
           </button>
         </div>
       </header>
+
+      {!hasPin && (
+        <button
+          onClick={() => {
+            setPinError(null);
+            setAskPin(true);
+          }}
+          className="animate-rise mt-2 flex w-full items-center gap-3 rounded-2xl border border-warning/40 bg-warning-soft px-4 py-3 text-left"
+        >
+          <span className="text-lg">🔒</span>
+          <span className="flex-1">
+            <span className="block text-sm font-semibold">Set your payment PIN</span>
+            <span className="block text-xs text-muted-foreground">
+              Required before you can pay or cash out.
+            </span>
+          </span>
+          <span className="text-muted-foreground">›</span>
+        </button>
+      )}
+
+      {askPin && (
+        <PinPrompt
+          confirm
+          title="Create your PIN"
+          subtitle="Six digits. You'll enter it every time you spend — even if someone else gets into your WhatsApp."
+          busy={busy}
+          error={pinError}
+          onSubmit={createPin}
+          onCancel={() => setAskPin(false)}
+        />
+      )}
 
       <section className="animate-rise mt-2 rounded-2xl bg-gradient-to-br from-primary to-primary-end p-6 text-primary-foreground shadow-lg">
         <p className="text-sm opacity-80">Digital rupiah balance</p>

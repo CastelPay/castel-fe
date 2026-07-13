@@ -1,3 +1,5 @@
+import { clearSession, getToken } from "./session";
+
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
 export type Balances = { cIDR: string; USDC: string };
@@ -10,6 +12,8 @@ export type Quote = {
   changerCidr: number;
   savingsIdr: number;
 };
+
+export type Session = { token: string; waNumber: string; publicKey: string; hasPin: boolean };
 
 export type QrisInfo = {
   merchantName: string;
@@ -42,44 +46,74 @@ export type Tx = {
   createdAt: number;
 };
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
 async function req<T>(path: string, opts?: { method?: string; body?: unknown }): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (opts?.body) headers["content-type"] = "application/json";
+  const token = getToken();
+  if (token) headers.authorization = `Bearer ${token}`;
+
   const res = await fetch(BASE + path, {
     method: opts?.method ?? "GET",
-    headers: opts?.body ? { "content-type": "application/json" } : undefined,
+    headers,
     body: opts?.body ? JSON.stringify(opts.body) : undefined,
   });
+
   if (!res.ok) {
+    // An expired or revoked session should send the user back to sign-in, not
+    // leave the page half-rendered with a stale token.
+    if (res.status === 401) clearSession();
     const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error ?? res.statusText);
+    throw new ApiError(err?.error ?? res.statusText, res.status);
   }
   return res.json();
 }
 
 export const api = {
-  onboard: (waNumber: string) =>
-    req<{ waNumber: string; publicKey: string }>("/onboard", { method: "POST", body: { waNumber } }),
-  balance: (waNumber: string) =>
-    req<Balances>(`/balance/${encodeURIComponent(waNumber)}`),
+  authRequest: (waNumber: string) =>
+    req<{ sent: boolean }>("/auth/request", { method: "POST", body: { waNumber } }),
+  authVerify: (waNumber: string, otp: string) =>
+    req<Session>("/auth/verify", { method: "POST", body: { waNumber, otp } }),
+  authExchange: (linkToken: string) =>
+    req<Session>("/auth/exchange", { method: "POST", body: { linkToken } }),
+
+  me: () => req<{ waNumber: string; publicKey: string; hasPin: boolean }>("/me"),
+  setPin: (pin: string) => req<{ ok: boolean }>("/me/pin", { method: "POST", body: { pin } }),
+  balance: () => req<Balances>("/me/balance"),
+  history: () => req<Tx[]>("/me/history"),
+
   quote: (usdc: number) => req<Quote>(`/fx/quote?usdc=${usdc}`),
-  fund: (waNumber: string, usdc: number) =>
-    req<Balances>("/fund", { method: "POST", body: { waNumber, usdc } }),
-  depositCreate: (waNumber: string, usd: number) =>
-    req<{ url: string }>("/deposit/create", { method: "POST", body: { waNumber, usd } }),
+  fund: (usdc: number) => req<Balances>("/fund", { method: "POST", body: { usdc } }),
+  depositCreate: (usd: number) =>
+    req<{ url: string }>("/deposit/create", { method: "POST", body: { usd } }),
   depositConfirm: (sessionId: string) =>
     req<{ credited: boolean; usd: number; balances: Balances }>("/deposit/confirm", {
       method: "POST",
       body: { sessionId },
     }),
-  swap: (waNumber: string, usdc: number) =>
-    req<{ hash: string; balances: Balances }>("/fx/swap", { method: "POST", body: { waNumber, usdc } }),
+  swap: (usdc: number) =>
+    req<{ hash: string; quote: Quote; balances: Balances }>("/fx/swap", {
+      method: "POST",
+      body: { usdc },
+    }),
+
   decodeQris: (payload: string) =>
     req<QrisInfo>("/qris/decode", { method: "POST", body: { payload } }),
-  pay: (waNumber: string, payload: string, amount?: number) =>
-    req<PayResult>("/pay", { method: "POST", body: { waNumber, payload, amount } }),
-  cashoutRequest: (waNumber: string, amountIdr: number) =>
+  pay: (payload: string, pin: string, amount?: number) =>
+    req<PayResult>("/pay", { method: "POST", body: { payload, amount, pin } }),
+
+  cashoutRequest: (amountIdr: number, pin: string) =>
     req<{ escrowId: number; codeHex: string; amountIdr: number; balances: Balances }>(
       "/cashout/request",
-      { method: "POST", body: { waNumber, amountIdr } },
+      { method: "POST", body: { amountIdr, pin } },
     ),
   cashoutInfo: (escrowId: number) =>
     req<{ escrowId: number; amountIdr: number; agentReceives: number; status: string }>(
@@ -90,5 +124,4 @@ export const api = {
       "/cashout/redeem",
       { method: "POST", body: { escrowId, codeHex } },
     ),
-  history: (waNumber: string) => req<Tx[]>(`/history/${encodeURIComponent(waNumber)}`),
 };

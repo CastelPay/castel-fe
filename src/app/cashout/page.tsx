@@ -4,28 +4,30 @@ import Link from "next/link";
 import QRCode from "qrcode";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { resolveWa } from "@/lib/session";
+import { PinPrompt } from "@/components/PinPrompt";
+import { getToken } from "@/lib/session";
 import { idr } from "@/lib/format";
 
 export default function CashoutPage() {
   const [wa, setWa] = useState<string | null>(null);
+  const [askPin, setAskPin] = useState(false);
   const [amount, setAmount] = useState("500000");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ticket, setTicket] = useState<{ amountIdr: number; qr: string; payload: string } | null>(null);
 
-  useEffect(() => setWa(resolveWa()), []);
+  useEffect(() => setWa(getToken()), []);
 
-  async function request() {
-    if (!wa) return;
+  async function request(pin: string) {
     const amt = Number(amount);
     if (!amt) return;
     setBusy(true);
     setError(null);
     try {
-      const res = await api.cashoutRequest(wa, amt);
+      const res = await api.cashoutRequest(amt, pin);
       const payload = `castel:${res.escrowId}:${res.codeHex}`;
       const qr = await QRCode.toDataURL(payload, { margin: 1, width: 320 });
+      setAskPin(false);
       setTicket({ amountIdr: res.amountIdr, qr, payload });
     } catch (e) {
       setError((e as Error).message);
@@ -70,15 +72,29 @@ export default function CashoutPage() {
               onChange={(e) => setAmount(e.target.value)}
               className="mt-1 w-full rounded-xl border border-border bg-background px-4 py-3 text-center font-[family-name:var(--font-mono)] text-2xl outline-none focus:border-primary"
             />
-            {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+            {error && !askPin && <p className="mt-3 text-sm text-destructive">{error}</p>}
             <button
-              onClick={request}
-              disabled={busy}
+              onClick={() => {
+                setError(null);
+                setAskPin(true);
+              }}
+              disabled={busy || !Number(amount)}
               className="mt-5 w-full rounded-full bg-gradient-to-r from-primary to-primary-end py-3.5 font-semibold text-primary-foreground shadow-md transition active:scale-[0.98] disabled:opacity-50"
             >
               {busy ? "Locking in escrow…" : "Request cash"}
             </button>
           </div>
+
+          {askPin && (
+            <PinPrompt
+              title={`Withdraw ${idr(Number(amount) || 0)}`}
+              subtitle="Enter your PIN to lock the funds in escrow for the agent."
+              busy={busy}
+              error={error}
+              onSubmit={request}
+              onCancel={() => setAskPin(false)}
+            />
+          )}
         </div>
       ) : (
         <div className="animate-rise flex flex-col items-center text-center">

@@ -4,7 +4,8 @@ import { BrowserQRCodeReader, type IScannerControls } from "@zxing/browser";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { api, type Balances, type PayResult, type QrisInfo } from "@/lib/api";
-import { resolveWa } from "@/lib/session";
+import { PinPrompt } from "@/components/PinPrompt";
+import { getToken } from "@/lib/session";
 import { idr } from "@/lib/format";
 
 const SAMPLE_QR =
@@ -14,6 +15,7 @@ type Stage = "scan" | "review" | "done";
 
 export default function PayPage() {
   const [wa, setWa] = useState<string | null>(null);
+  const [askPin, setAskPin] = useState(false);
   const [stage, setStage] = useState<Stage>("scan");
   const [payload, setPayload] = useState("");
   const [info, setInfo] = useState<QrisInfo | null>(null);
@@ -30,7 +32,7 @@ export default function PayPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
 
-  useEffect(() => setWa(resolveWa()), []);
+  useEffect(() => setWa(getToken()), []);
 
   useEffect(() => {
     if (stage !== "scan" || !videoRef.current) return;
@@ -68,18 +70,19 @@ export default function PayPage() {
     }
   }
 
-  async function confirmPay() {
-    if (!wa || !info) return;
+  async function confirmPay(pin: string) {
+    if (!info) return;
     setBusy(true);
     setError(null);
     try {
-      const res = await api.pay(wa, payload, info.amount ?? Number(amount));
+      const res = await api.pay(payload, pin, info.amount ?? Number(amount));
       setReceipt({
         merchant: res.merchant,
         amountIdr: res.amountIdr,
         balances: res.balances,
         settlement: res.settlement,
       });
+      setAskPin(false);
       setStage("done");
     } catch (e) {
       setError((e as Error).message);
@@ -181,12 +184,26 @@ export default function PayPage() {
           {error && <p className="mt-3 text-center text-sm text-destructive">{error}</p>}
 
           <button
-            onClick={confirmPay}
+            onClick={() => {
+              setError(null);
+              setAskPin(true);
+            }}
             disabled={busy || (info.isStatic && !Number(amount))}
             className="mt-5 w-full rounded-full bg-gradient-to-r from-primary to-primary-end py-3.5 font-semibold text-primary-foreground shadow-md transition active:scale-[0.98] disabled:opacity-50"
           >
             {busy ? "Paying…" : `Pay ${idr(info.amount ?? (Number(amount) || 0))}`}
           </button>
+
+          {askPin && (
+            <PinPrompt
+              title={`Pay ${idr(info.amount ?? (Number(amount) || 0))}`}
+              subtitle={`To ${info.merchantName}. Enter your PIN to authorise.`}
+              busy={busy}
+              error={error}
+              onSubmit={confirmPay}
+              onCancel={() => setAskPin(false)}
+            />
+          )}
           <button
             onClick={() => {
               setStage("scan");
