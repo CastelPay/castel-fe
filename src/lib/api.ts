@@ -8,6 +8,8 @@ export type Quote = {
   usdc: number;
   cidrOut: number;
   rate: number;
+  midRate: number;
+  midSource: "live" | "cached" | "fallback";
   changerRate: number;
   changerCidr: number;
   savingsIdr: number;

@@ -356,11 +356,16 @@ export default function WalletPage() {
                     </span>
                   </div>
                   <div className="mt-1 flex items-center justify-between text-xs opacity-80">
-                    <span>vs money changer</span>
+                    <span>vs money changer (est.)</span>
                     <span className="font-[family-name:var(--font-mono)]">
-                      +{idr(depQuote.savingsIdr)}
+                      {depQuote.savingsIdr >= 0 ? "+" : ""}
+                      {idr(depQuote.savingsIdr)}
                     </span>
                   </div>
+                  <p className="mt-1 text-[11px] opacity-60">
+                    Market rate {depQuote.midRate.toFixed(0)}/USD
+                    {depQuote.midSource === "live" ? " · live" : " · last known"}
+                  </p>
                 </div>
               )}
               <button
@@ -441,17 +446,43 @@ export default function WalletPage() {
               <span className="font-[family-name:var(--font-mono)]">{quote.rate.toFixed(0)} /USD</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Money changer</span>
+              <span className="text-muted-foreground">
+                Market rate {quote.midSource === "live" ? "· live" : "· last known"}
+              </span>
+              <span className="font-[family-name:var(--font-mono)]">
+                {quote.midRate.toFixed(0)} /USD
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Money changer (est.)</span>
               <span className="font-[family-name:var(--font-mono)] text-muted-foreground line-through">
                 {idr(quote.changerCidr)}
               </span>
             </div>
-            <div className="flex items-center justify-between rounded-lg bg-success-soft px-3 py-2">
-              <span className="text-sm font-medium text-success">💰 You save</span>
-              <span className="font-[family-name:var(--font-mono)] font-bold text-success">
+            <div
+              className={`flex items-center justify-between rounded-lg px-3 py-2 ${
+                quote.savingsIdr >= 0 ? "bg-success-soft" : "bg-muted"
+              }`}
+            >
+              <span
+                className={`text-sm font-medium ${
+                  quote.savingsIdr >= 0 ? "text-success" : "text-muted-foreground"
+                }`}
+              >
+                {quote.savingsIdr >= 0 ? "💰 You save" : "Difference"}
+              </span>
+              <span
+                className={`font-[family-name:var(--font-mono)] font-bold ${
+                  quote.savingsIdr >= 0 ? "text-success" : "text-muted-foreground"
+                }`}
+              >
                 {idr(quote.savingsIdr)}
               </span>
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              Money-changer figure is an estimate: market rate minus a typical Rp 200/USD
+              markdown.
+            </p>
           </div>
         )}
 
