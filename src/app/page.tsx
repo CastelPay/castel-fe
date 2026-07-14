@@ -1,9 +1,21 @@
 import Link from "next/link";
 
 const steps = [
-  { n: "1", t: "Chat & top up", d: "Onboard with WhatsApp, fund with USDC or cash at an agent." },
-  { n: "2", t: "Fair exchange", d: "Get rupiah at near-market rates — beat the money changers." },
-  { n: "3", t: "Pay or cash out", d: "Scan any QRIS to pay, or collect cash at a Castel agent." },
+  {
+    n: "1",
+    t: "Sign in on WhatsApp",
+    d: "Your phone number is your account. No app, no local SIM, no ID.",
+  },
+  {
+    n: "2",
+    t: "Top up with your card",
+    d: "Your balance is in rupiah, ready to spend the moment it lands.",
+  },
+  {
+    n: "3",
+    t: "Scan & pay — or take cash",
+    d: "Pay any QRIS merchant, always settled in rupiah. Collect the rest as cash at a partner money changer.",
+  },
 ];
 
 export default function Home() {
@@ -14,14 +26,15 @@ export default function Home() {
           Cash on Stellar
         </span>
         <h1 className="mt-4 font-[family-name:var(--font-heading)] text-5xl font-bold leading-tight tracking-tight">
-          Digital rupiah,
+          Pay in Bali,
           <br />
           <span className="bg-gradient-to-r from-primary to-primary-end bg-clip-text text-transparent">
-            fair rates.
+            from your card.
           </span>
         </h1>
         <p className="mt-4 text-lg text-muted-foreground">
-          Exchange money & pay anywhere in Bali — no Indonesian bank account. Just WhatsApp.
+          Scan any QRIS merchant and take the rest home as cash — no Indonesian bank account,
+          SIM, or ID. Just WhatsApp.
         </p>
         <Link
           href="/wallet"
