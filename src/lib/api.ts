@@ -127,6 +127,16 @@ export const api = {
     req<QrisInfo>("/qris/decode", { method: "POST", body: { payload } }),
   pay: (payload: string, pin: string, amount?: number) =>
     req<PayResult>("/pay", { method: "POST", body: { payload, amount, pin } }),
+  quickPayCreate: (payload: string, amount?: number) =>
+    req<{ url: string; usd: number; amountIdr: number }>("/pay/quick/create", {
+      method: "POST",
+      body: { payload, amount },
+    }),
+  quickPayConfirm: (sessionId: string) =>
+    req<PayResult & { alreadyPaid?: boolean }>("/pay/quick/confirm", {
+      method: "POST",
+      body: { sessionId },
+    }),
 
   cashoutRequest: (amountIdr: number, pin: string) =>
     req<{ escrowId: number; codeHex: string; amountIdr: number; balances: Balances }>(

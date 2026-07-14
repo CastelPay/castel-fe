@@ -542,7 +542,7 @@ export default function WalletPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{tx.title}</p>
-                  {tx.hash && (
+                  {tx.hash && /^[a-f0-9]{64}$/i.test(tx.hash) && (
                     <a
                       href={EXPLORER + tx.hash}
                       target="_blank"

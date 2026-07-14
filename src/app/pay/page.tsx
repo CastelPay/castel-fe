@@ -18,6 +18,7 @@ export default function PayPage() {
   const [askPin, setAskPin] = useState(false);
   const [hasPin, setHasPin] = useState(true);
   const [scanning, setScanning] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [balance, setBalance] = useState<number | null>(null);
   const [stage, setStage] = useState<Stage>("scan");
   const [payload, setPayload] = useState("");
@@ -45,6 +46,37 @@ export default function PayPage() {
       .me()
       .then((m) => setHasPin(m.hasPin))
       .catch(() => {});
+  }, []);
+
+  // Back from Stripe after a Quick Pay: the card cleared on Stripe's page, so the server
+  // now swaps and pays the merchant, and we land straight on the receipt.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("quick");
+    if (!q) return;
+    const clean = () => window.history.replaceState({}, "", "/pay");
+    if (q === "cancel") {
+      setError("Payment cancelled");
+      clean();
+      return;
+    }
+    setConfirming(true);
+    (async () => {
+      try {
+        const res = await api.quickPayConfirm(q);
+        setReceipt({
+          merchant: res.merchant,
+          amountIdr: res.amountIdr,
+          balances: res.balances,
+          settlement: res.settlement,
+        });
+        setStage("done");
+      } catch (e) {
+        setError("Couldn't complete payment: " + (e as Error).message);
+      } finally {
+        setConfirming(false);
+        clean();
+      }
+    })();
   }, []);
 
   // Leaving the scan stage (or unmounting) must release the camera.
@@ -111,6 +143,19 @@ export default function PayPage() {
     }
   }
 
+  async function startQuickPay() {
+    if (!info) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const { url } = await api.quickPayCreate(payload, info.amount ?? Number(amount));
+      window.location.href = url;
+    } catch (e) {
+      setError((e as Error).message);
+      setBusy(false);
+    }
+  }
+
   async function confirmPay(pin: string) {
     if (!info) return;
     setBusy(true);
@@ -145,6 +190,18 @@ export default function PayPage() {
         <Link href="/wallet" className="mt-4 font-medium text-primary">
           Go to wallet →
         </Link>
+      </main>
+    );
+  }
+
+  if (confirming) {
+    return (
+      <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center px-6 text-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-border border-t-primary" />
+        <p className="mt-5 font-medium">Completing your payment…</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Converting to rupiah and paying the merchant.
+        </p>
       </main>
     );
   }
@@ -243,22 +300,18 @@ export default function PayPage() {
 
           {error && <p className="mt-3 text-center text-sm text-destructive">{error}</p>}
 
-          {short ? (
-            <>
-              <div className="mt-5 rounded-2xl border border-warning/40 bg-warning-soft p-4 text-center">
-                <p className="text-sm font-semibold">Not enough balance</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  You have {idr(balance ?? 0)} — you need {idr(due)}.
-                </p>
-              </div>
-              <Link
-                href="/wallet?topup=1"
-                className="mt-3 block w-full rounded-full bg-gradient-to-r from-primary to-primary-end py-3.5 text-center font-semibold text-primary-foreground shadow-md transition active:scale-[0.98]"
-              >
-                Top up with card →
-              </Link>
-            </>
-          ) : (
+          {short && (
+            <div className="mt-5 rounded-2xl border border-warning/40 bg-warning-soft p-4 text-center">
+              <p className="text-sm font-semibold">Not enough balance</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                You have {idr(balance ?? 0)} — pay with your card instead, no top-up needed.
+              </p>
+            </div>
+          )}
+
+          {/* Balance is the cheap path when it covers the bill; Quick Pay charges the card
+              for just this payment when it doesn't (or when the tourist would rather not prefund). */}
+          {!short && (
             <button
               onClick={() => {
                 setError(null);
@@ -267,8 +320,25 @@ export default function PayPage() {
               disabled={busy || (info.isStatic && !Number(amount))}
               className="mt-5 w-full rounded-full bg-gradient-to-r from-primary to-primary-end py-3.5 font-semibold text-primary-foreground shadow-md transition active:scale-[0.98] disabled:opacity-50"
             >
-              {busy ? "Paying…" : `Pay ${idr(due)}`}
+              {busy ? "Paying…" : `Pay ${idr(due)} from balance`}
             </button>
+          )}
+
+          <button
+            onClick={startQuickPay}
+            disabled={busy || (info.isStatic && !Number(amount))}
+            className={
+              short
+                ? "mt-3 w-full rounded-full bg-gradient-to-r from-primary to-primary-end py-3.5 font-semibold text-primary-foreground shadow-md transition active:scale-[0.98] disabled:opacity-50"
+                : "mt-3 w-full rounded-full border border-border py-3 text-sm font-medium transition active:scale-[0.98] disabled:opacity-50"
+            }
+          >
+            {busy ? "…" : `Quick pay ${idr(due)} with card →`}
+          </button>
+          {!short && (
+            <p className="mt-2 text-center text-[11px] text-muted-foreground">
+              No balance needed — your card is charged for this payment.
+            </p>
           )}
 
           {askPin && (
