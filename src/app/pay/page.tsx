@@ -43,18 +43,46 @@ export default function PayPage() {
 
   useEffect(() => {
     if (stage !== "scan" || !videoRef.current) return;
+
+    // getUserMedia only exists on HTTPS or localhost — over a plain-http LAN IP the
+    // browser exposes no camera API at all, so no permission prompt can ever appear.
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+      setError("Camera needs a secure (https) connection — paste a code below");
+      return;
+    }
+
     let active = true;
     const reader = new BrowserQRCodeReader();
+    // Asking for facingMode "environment" is what triggers the permission prompt and
+    // selects the back camera; decodeFromVideoDevice(undefined) often does neither on mobile.
     reader
-      .decodeFromVideoDevice(undefined, videoRef.current, (result, _err, controls) => {
-        controlsRef.current = controls;
-        if (result && active) {
-          active = false;
-          controls.stop();
-          handlePayload(result.getText());
-        }
-      })
-      .catch(() => setError("Camera unavailable — paste a code below"));
+      .decodeFromConstraints(
+        { video: { facingMode: "environment" } },
+        videoRef.current,
+        (result, _err, controls) => {
+          controlsRef.current = controls;
+          if (!active) {
+            controls.stop();
+            return;
+          }
+          if (result) {
+            active = false;
+            controls.stop();
+            handlePayload(result.getText());
+          }
+        },
+      )
+      .catch((e: unknown) => {
+        const name = (e as { name?: string })?.name;
+        setError(
+          name === "NotAllowedError"
+            ? "Camera permission denied — allow it in your browser, or paste a code below"
+            : name === "NotFoundError"
+              ? "No camera found — paste a code below"
+              : "Camera unavailable — paste a code below",
+        );
+      });
+
     return () => {
       active = false;
       controlsRef.current?.stop();
