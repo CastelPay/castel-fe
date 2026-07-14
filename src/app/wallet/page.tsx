@@ -236,15 +236,22 @@ export default function WalletPage() {
       <header className="sticky top-0 z-10 -mx-5 mb-2 border-b border-border/60 bg-background/70 px-5 py-4 backdrop-blur-md">
         <div className="flex items-center justify-between">
           <span className="font-[family-name:var(--font-heading)] text-xl font-bold">Castel</span>
-          <button
-            onClick={() => {
-              clearSession();
-              setWaNumber(null);
-            }}
-            className="text-xs text-muted-foreground"
-          >
-            {waNumber}
-          </button>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">{waNumber}</span>
+            <button
+              onClick={() => {
+                clearSession();
+                setWaNumber(null);
+                setBalances(null);
+                setHistory([]);
+                setLimits(null);
+                setHasPin(true);
+              }}
+              className="rounded-full border border-border px-3 py-1 text-xs font-medium transition active:scale-95"
+            >
+              Log out
+            </button>
+          </div>
         </div>
       </header>
 
