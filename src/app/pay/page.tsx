@@ -16,6 +16,7 @@ type Stage = "scan" | "review" | "done";
 export default function PayPage() {
   const [wa, setWa] = useState<string | null>(null);
   const [askPin, setAskPin] = useState(false);
+  const [hasPin, setHasPin] = useState(true);
   const [balance, setBalance] = useState<number | null>(null);
   const [stage, setStage] = useState<Stage>("scan");
   const [payload, setPayload] = useState("");
@@ -39,6 +40,10 @@ export default function PayPage() {
       .balance()
       .then((b) => setBalance(Number(b.cIDR)))
       .catch(() => setBalance(null));
+    api
+      .me()
+      .then((m) => setHasPin(m.hasPin))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -110,6 +115,12 @@ export default function PayPage() {
     setBusy(true);
     setError(null);
     try {
+      // First-time payers set their PIN here rather than being sent away to /wallet,
+      // which would drop the QR code they just scanned. The same prompt creates it.
+      if (!hasPin) {
+        await api.setPin(pin);
+        setHasPin(true);
+      }
       const res = await api.pay(payload, pin, info.amount ?? Number(amount));
       setReceipt({
         merchant: res.merchant,
@@ -251,8 +262,13 @@ export default function PayPage() {
 
           {askPin && (
             <PinPrompt
-              title={`Pay ${idr(due)}`}
-              subtitle={`To ${info.merchantName}. Enter your PIN to authorise.`}
+              confirm={!hasPin}
+              title={hasPin ? `Pay ${idr(due)}` : "Set your payment PIN"}
+              subtitle={
+                hasPin
+                  ? `To ${info.merchantName}. Enter your PIN to authorise.`
+                  : `First create a 6-digit PIN — you'll use it to pay ${idr(due)} to ${info.merchantName} and every payment after.`
+              }
               busy={busy}
               error={error}
               onSubmit={confirmPay}

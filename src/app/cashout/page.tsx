@@ -11,12 +11,19 @@ import { idr } from "@/lib/format";
 export default function CashoutPage() {
   const [wa, setWa] = useState<string | null>(null);
   const [askPin, setAskPin] = useState(false);
+  const [hasPin, setHasPin] = useState(true);
   const [amount, setAmount] = useState("500000");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ticket, setTicket] = useState<{ amountIdr: number; qr: string; payload: string } | null>(null);
 
-  useEffect(() => setWa(getToken()), []);
+  useEffect(() => {
+    setWa(getToken());
+    api
+      .me()
+      .then((m) => setHasPin(m.hasPin))
+      .catch(() => {});
+  }, []);
 
   async function request(pin: string) {
     const amt = Number(amount);
@@ -24,6 +31,10 @@ export default function CashoutPage() {
     setBusy(true);
     setError(null);
     try {
+      if (!hasPin) {
+        await api.setPin(pin);
+        setHasPin(true);
+      }
       const res = await api.cashoutRequest(amt, pin);
       const payload = `castel:${res.escrowId}:${res.codeHex}`;
       const qr = await QRCode.toDataURL(payload, { margin: 1, width: 320 });
@@ -87,8 +98,13 @@ export default function CashoutPage() {
 
           {askPin && (
             <PinPrompt
-              title={`Withdraw ${idr(Number(amount) || 0)}`}
-              subtitle="Enter your PIN to lock the funds in escrow for the agent."
+              confirm={!hasPin}
+              title={hasPin ? `Withdraw ${idr(Number(amount) || 0)}` : "Set your payment PIN"}
+              subtitle={
+                hasPin
+                  ? "Enter your PIN to lock the funds in escrow for the agent."
+                  : "First create a 6-digit PIN — you'll use it for this withdrawal and every payment."
+              }
               busy={busy}
               error={error}
               onSubmit={request}
