@@ -17,6 +17,7 @@ export default function PayPage() {
   const [wa, setWa] = useState<string | null>(null);
   const [askPin, setAskPin] = useState(false);
   const [hasPin, setHasPin] = useState(true);
+  const [scanning, setScanning] = useState(false);
   const [balance, setBalance] = useState<number | null>(null);
   const [stage, setStage] = useState<Stage>("scan");
   const [payload, setPayload] = useState("");
@@ -46,53 +47,53 @@ export default function PayPage() {
       .catch(() => {});
   }, []);
 
+  // Leaving the scan stage (or unmounting) must release the camera.
   useEffect(() => {
-    if (stage !== "scan" || !videoRef.current) return;
+    if (stage !== "scan") {
+      controlsRef.current?.stop();
+      controlsRef.current = null;
+      setScanning(false);
+    }
+  }, [stage]);
+  useEffect(() => () => controlsRef.current?.stop(), []);
 
-    // getUserMedia only exists on HTTPS or localhost — over a plain-http LAN IP the
-    // browser exposes no camera API at all, so no permission prompt can ever appear.
+  // Started from a button tap on purpose: mobile browsers (iOS Safari especially) only
+  // surface the camera permission prompt in response to a user gesture, and auto-starting
+  // on mount silently fails.
+  async function startCamera() {
+    if (!videoRef.current) return;
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
       setError("Camera needs a secure (https) connection — paste a code below");
       return;
     }
-
-    let active = true;
-    const reader = new BrowserQRCodeReader();
-    // Asking for facingMode "environment" is what triggers the permission prompt and
-    // selects the back camera; decodeFromVideoDevice(undefined) often does neither on mobile.
-    reader
-      .decodeFromConstraints(
+    setError(null);
+    try {
+      const reader = new BrowserQRCodeReader();
+      const controls = await reader.decodeFromConstraints(
         { video: { facingMode: "environment" } },
         videoRef.current,
-        (result, _err, controls) => {
-          controlsRef.current = controls;
-          if (!active) {
-            controls.stop();
-            return;
-          }
+        (result, _err, ctrl) => {
           if (result) {
-            active = false;
-            controls.stop();
+            ctrl.stop();
+            controlsRef.current = null;
+            setScanning(false);
             handlePayload(result.getText());
           }
         },
-      )
-      .catch((e: unknown) => {
-        const name = (e as { name?: string })?.name;
-        setError(
-          name === "NotAllowedError"
-            ? "Camera permission denied — allow it in your browser, or paste a code below"
-            : name === "NotFoundError"
-              ? "No camera found — paste a code below"
-              : "Camera unavailable — paste a code below",
-        );
-      });
-
-    return () => {
-      active = false;
-      controlsRef.current?.stop();
-    };
-  }, [stage]);
+      );
+      controlsRef.current = controls;
+      setScanning(true);
+    } catch (e: unknown) {
+      const name = (e as { name?: string })?.name;
+      setError(
+        name === "NotAllowedError"
+          ? "Camera permission denied — allow it in your browser settings, or paste a code below"
+          : name === "NotFoundError"
+            ? "No camera found — paste a code below"
+            : "Camera unavailable — paste a code below",
+      );
+    }
+  }
 
   async function handlePayload(p: string) {
     setBusy(true);
@@ -168,7 +169,17 @@ export default function PayPage() {
 
           <div className="relative mt-5 aspect-square w-full overflow-hidden rounded-2xl border border-border bg-foreground/5">
             <video ref={videoRef} className="h-full w-full object-cover" muted playsInline />
-            <div className="pointer-events-none absolute inset-8 rounded-2xl border-2 border-white/80" />
+            {scanning ? (
+              <div className="pointer-events-none absolute inset-8 rounded-2xl border-2 border-white/80" />
+            ) : (
+              <button
+                onClick={startCamera}
+                className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted-foreground"
+              >
+                <span className="text-4xl">📷</span>
+                <span className="text-sm font-medium">Tap to start camera</span>
+              </button>
+            )}
           </div>
 
           <div className="mt-6 rounded-2xl border border-border bg-card p-4">
