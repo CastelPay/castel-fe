@@ -55,18 +55,17 @@ export default function Home() {
           Pay in Bali,
           <br />
           <span className="bg-gradient-to-r from-primary to-primary-end bg-clip-text text-transparent">
-            from your card.
+            Directlyfrom your card.
           </span>
         </h1>
         <p className="mt-4 text-lg text-muted-foreground">
-          Scan any QRIS merchant and take the rest home as cash — no Indonesian bank account,
-          SIM, or ID. Just WhatsApp.
+          Scan any QRIS merchant, no Indonesian bank account, SIM, or ID card needed.
         </p>
         <Link
           href="/wallet"
           className="mt-8 inline-block rounded-full bg-gradient-to-r from-primary to-primary-end px-7 py-3.5 font-semibold text-primary-foreground shadow-md transition active:scale-[0.98]"
         >
-          Open wallet
+          Connect Wallet
         </Link>
       </div>
 
@@ -189,7 +188,7 @@ export default function Home() {
           href="/wallet"
           className="rounded-full bg-gradient-to-r from-primary to-primary-end px-7 py-3.5 font-semibold text-primary-foreground shadow-md transition active:scale-[0.98]"
         >
-          Open wallet
+          Connect Wallet
         </Link>
         <Link href="/pay" className="mt-4 text-sm font-medium text-muted-foreground">
           Try a payment →
