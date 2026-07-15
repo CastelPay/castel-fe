@@ -1,4 +1,6 @@
+import type { CSSProperties } from "react";
 import Link from "next/link";
+import { Reveal } from "@/components/Reveal";
 
 const startSteps = [
   {
@@ -43,13 +45,13 @@ const paySteps = [
 
 export default function Home() {
   return (
-    <main className="mx-auto max-w-md px-6 py-16">
+    <main className="relative mx-auto max-w-md overflow-hidden px-6 py-16">
+      <Reveal />
+      <div className="aurora" aria-hidden />
+
       {/* Hero */}
-      <div className="animate-rise">
-        <span className="inline-block rounded-full bg-success-soft px-3 py-1 text-xs font-medium text-success">
-          Cash on Stellar
-        </span>
-        <h1 className="mt-4 font-[family-name:var(--font-heading)] text-5xl font-bold leading-tight tracking-tight">
+      <div className="animate-rise relative z-10">
+        <h1 className="font-[family-name:var(--font-heading)] text-5xl font-bold leading-tight tracking-tight">
           Pay in Bali,
           <br />
           <span className="bg-gradient-to-r from-primary to-primary-end bg-clip-text text-transparent">
@@ -69,30 +71,44 @@ export default function Home() {
       </div>
 
       {/* Centerpiece: Two ways to pay */}
-      <section className="animate-rise mt-16">
-        <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <section className="relative z-10 mt-16">
+        <h2
+          data-reveal
+          className="reveal px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+        >
           Two ways to pay
         </h2>
         <div className="mt-3 space-y-3">
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-2">
-              <p className="font-[family-name:var(--font-heading)] text-lg font-semibold">
-                Pay from balance
+          {/* Featured card wrapped in a gradient hairline ring */}
+          <div
+            data-reveal
+            className="reveal rounded-2xl bg-gradient-to-br from-primary/40 to-primary-end/40 p-[1px] shadow-md"
+            style={{ "--i": 1 } as CSSProperties}
+          >
+            <div className="rounded-2xl bg-card p-6">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-[family-name:var(--font-heading)] text-lg font-semibold">
+                  Pay from balance
+                </p>
+                <span className="shrink-0 rounded-full bg-success-soft px-3 py-1 text-xs font-medium text-success">
+                  Cheapest
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Top up once, spend all trip. Every payment comes out of your rupiah balance and
+                costs nothing extra. Just confirm with your PIN.
               </p>
-              <span className="shrink-0 rounded-full bg-success-soft px-3 py-1 text-xs font-medium text-success">
-                Cheapest
-              </span>
+              <p className="mt-3 font-[family-name:var(--font-mono)] text-sm font-semibold text-primary">
+                Pay Rp X from balance
+              </p>
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Top up once, spend all trip. Every payment comes out of your rupiah balance and
-              costs nothing extra. Just confirm with your PIN.
-            </p>
-            <p className="mt-3 font-[family-name:var(--font-mono)] text-sm font-semibold text-primary">
-              Pay Rp X from balance
-            </p>
           </div>
 
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <div
+            data-reveal
+            className="reveal rounded-2xl border border-border bg-card p-6 shadow-sm"
+            style={{ "--i": 2 } as CSSProperties}
+          >
             <p className="font-[family-name:var(--font-heading)] text-lg font-semibold">
               Quick Pay
             </p>
@@ -105,19 +121,31 @@ export default function Home() {
             </p>
           </div>
         </div>
-        <p className="mt-3 px-1 text-xs text-muted-foreground">
+        <p
+          data-reveal
+          className="reveal mt-3 px-1 text-xs text-muted-foreground"
+          style={{ "--i": 3 } as CSSProperties}
+        >
           Balance short? The app flags it and switches you to Quick Pay automatically, so you&apos;re
           never stuck at the counter.
         </p>
       </section>
 
       {/* Get started */}
-      <section className="animate-rise mt-14 space-y-3">
-        <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <section className="relative z-10 mt-14 space-y-3">
+        <h2
+          data-reveal
+          className="reveal px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+        >
           Get started in 60 seconds
         </h2>
-        {startSteps.map((s) => (
-          <div key={s.n} className="flex gap-4 rounded-2xl border border-border bg-card p-4">
+        {startSteps.map((s, i) => (
+          <div
+            key={s.n}
+            data-reveal
+            className="reveal flex gap-4 rounded-2xl border border-border bg-card p-4"
+            style={{ "--i": i + 1 } as CSSProperties}
+          >
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-end text-sm font-bold text-primary-foreground">
               {s.n}
             </div>
@@ -130,12 +158,20 @@ export default function Home() {
       </section>
 
       {/* Paying a merchant */}
-      <section className="animate-rise mt-14 space-y-3">
-        <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <section className="relative z-10 mt-14 space-y-3">
+        <h2
+          data-reveal
+          className="reveal px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+        >
           Paying a merchant
         </h2>
-        {paySteps.map((s) => (
-          <div key={s.n} className="flex gap-4 rounded-2xl border border-border bg-card p-4">
+        {paySteps.map((s, i) => (
+          <div
+            key={s.n}
+            data-reveal
+            className="reveal flex gap-4 rounded-2xl border border-border bg-card p-4"
+            style={{ "--i": i + 1 } as CSSProperties}
+          >
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-end text-sm font-bold text-primary-foreground">
               {s.n}
             </div>
@@ -148,7 +184,7 @@ export default function Home() {
       </section>
 
       {/* Bottom CTA */}
-      <div className="animate-rise mt-14 flex flex-col items-center">
+      <div data-reveal className="reveal relative z-10 mt-14 flex flex-col items-center">
         <Link
           href="/wallet"
           className="rounded-full bg-gradient-to-r from-primary to-primary-end px-7 py-3.5 font-semibold text-primary-foreground shadow-md transition active:scale-[0.98]"
@@ -160,8 +196,8 @@ export default function Home() {
         </Link>
       </div>
 
-      <p className="mt-10 text-center text-xs text-muted-foreground">
-        Built on Stellar · merchants always settle in rupiah
+      <p className="relative z-10 mt-10 text-center text-xs text-muted-foreground">
+        Built on Stellar
       </p>
     </main>
   );

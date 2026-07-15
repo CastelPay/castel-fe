@@ -57,3 +57,85 @@ body {
 .animate-rise {
   animation: rise 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+/* ---- Ambient aurora (landing hero backdrop) ---- */
+@keyframes drift {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(6%, 5%) scale(1.18);
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+.aurora {
+  position: absolute;
+  top: -80px;
+  left: -15%;
+  right: -15%;
+  height: 560px;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  filter: blur(54px);
+  opacity: 0.9;
+  /* soft violet wash on the right for a high-tech, non-flat gradient */
+  background: radial-gradient(
+    42% 46% at 80% 26%,
+    rgba(139, 92, 246, 0.32),
+    transparent 72%
+  );
+}
+.aurora::before,
+.aurora::after {
+  content: "";
+  position: absolute;
+  border-radius: 9999px;
+}
+.aurora::before {
+  width: 380px;
+  height: 380px;
+  top: -70px;
+  left: -50px;
+  background: radial-gradient(circle, rgba(0, 82, 255, 0.55), transparent 66%);
+  animation: drift 15s ease-in-out infinite;
+}
+.aurora::after {
+  width: 340px;
+  height: 340px;
+  top: 20px;
+  right: -40px;
+  background: radial-gradient(circle, rgba(77, 124, 255, 0.5), transparent 66%);
+  animation: drift 19s ease-in-out infinite reverse;
+}
+
+/* ---- Scroll-reveal (staggered via --i) ---- */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.6s ease,
+    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(var(--i, 0) * 70ms);
+}
+.reveal.in {
+  opacity: 1;
+  transform: none;
+}
+
+/* Respect users who ask for less motion — kill everything kinetic. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .aurora::before,
+  .aurora::after {
+    animation: none !important;
+  }
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
