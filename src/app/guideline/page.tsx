@@ -144,23 +144,6 @@ export default function GuidelinePage() {
         ))}
       </section>
 
-      {/* Need cash instead */}
-      <section className="animate-rise mt-14">
-        <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Need cash instead?
-        </h2>
-        <div className="mt-3 flex gap-4 rounded-2xl border border-border bg-card p-4">
-          <div className="text-2xl">💵</div>
-          <div>
-            <p className="font-semibold">Get cash from your balance</p>
-            <p className="text-sm text-muted-foreground">
-              Enter an amount and confirm with your PIN to get a pickup QR code. Show it to any
-              partner money changer and they hand you the cash.
-            </p>
-          </div>
-        </div>
-      </section>
-
       {/* Bottom CTA */}
       <div className="animate-rise mt-14 flex flex-col items-center">
         <Link
