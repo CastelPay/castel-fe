@@ -55,7 +55,7 @@ export default function Home() {
           Pay in Bali,
           <br />
           <span className="bg-gradient-to-r from-primary to-primary-end bg-clip-text text-transparent">
-            Directlyfrom your card.
+            Directly from your card.
           </span>
         </h1>
         <p className="mt-4 text-lg text-muted-foreground">
