@@ -18,6 +18,7 @@ export default function PayPage() {
   const [askPin, setAskPin] = useState(false);
   const [hasPin, setHasPin] = useState(true);
   const [scanning, setScanning] = useState(false);
+  const [manual, setManual] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [balance, setBalance] = useState<number | null>(null);
   const [stage, setStage] = useState<Stage>("scan");
@@ -89,11 +90,18 @@ export default function PayPage() {
   }, [stage]);
   useEffect(() => () => controlsRef.current?.stop(), []);
 
-  // Started from a button tap on purpose: mobile browsers (iOS Safari especially) only
-  // surface the camera permission prompt in response to a user gesture, and auto-starting
-  // on mount silently fails.
+  // Open the camera the moment the scan screen is shown — no tap needed where the browser
+  // allows it. `wa` gates it so we don't prompt before the session is confirmed.
+  useEffect(() => {
+    if (wa && stage === "scan" && !confirming) startCamera();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wa, stage, confirming]);
+
+  // Tries to open the camera as soon as the page loads. Some mobile browsers (iOS Safari)
+  // only grant the camera on a user gesture, so if the auto-start is blocked we fall back
+  // to a tap-to-start overlay rather than failing silently.
   async function startCamera() {
-    if (!videoRef.current) return;
+    if (controlsRef.current || !videoRef.current) return;
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
       setError("Camera needs a secure (https) connection — paste a code below");
       return;
@@ -206,6 +214,87 @@ export default function PayPage() {
     );
   }
 
+  if (stage === "scan") {
+    return (
+      <main className="fixed inset-0 bg-black">
+        <video
+          ref={videoRef}
+          className="absolute inset-0 h-full w-full object-cover"
+          muted
+          playsInline
+        />
+
+        {/* top bar */}
+        <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent px-5 pb-8 pt-[max(1rem,env(safe-area-inset-top))]">
+          <Link href="/wallet" className="text-sm font-medium text-white/90">
+            ← Wallet
+          </Link>
+          <span className="font-[family-name:var(--font-heading)] font-bold text-white">Scan QRIS</span>
+          <span className="w-12" />
+        </div>
+
+        {/* scan frame */}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div className="relative aspect-square w-[68%] max-w-xs">
+            <span className="absolute -left-1 -top-1 h-8 w-8 rounded-tl-xl border-l-4 border-t-4 border-white" />
+            <span className="absolute -right-1 -top-1 h-8 w-8 rounded-tr-xl border-r-4 border-t-4 border-white" />
+            <span className="absolute -bottom-1 -left-1 h-8 w-8 rounded-bl-xl border-b-4 border-l-4 border-white" />
+            <span className="absolute -bottom-1 -right-1 h-8 w-8 rounded-br-xl border-b-4 border-r-4 border-white" />
+          </div>
+        </div>
+
+        {/* camera not running yet — permission needed / blocked */}
+        {!scanning && (
+          <button
+            onClick={startCamera}
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-black/50 text-white"
+          >
+            <span className="text-5xl">📷</span>
+            <span className="text-sm font-medium">Tap to start camera</span>
+          </button>
+        )}
+
+        {/* bottom sheet: manual entry + sample */}
+        <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/70 to-transparent px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-10">
+          <p className="text-center text-xs text-white/70">Point at a merchant&apos;s QRIS code</p>
+          {error && <p className="mt-2 text-center text-sm text-red-300">{error}</p>}
+          <div className="mt-3 flex items-center justify-center gap-2">
+            <button
+              onClick={() => setManual((v) => !v)}
+              className="rounded-full bg-white/15 px-4 py-2 text-sm font-medium text-white backdrop-blur"
+            >
+              Enter code
+            </button>
+            <button
+              onClick={() => handlePayload(SAMPLE_QR)}
+              className="rounded-full bg-white/15 px-4 py-2 text-sm font-medium text-white backdrop-blur"
+            >
+              Use sample
+            </button>
+          </div>
+          {manual && (
+            <div className="mt-3 rounded-2xl bg-white p-3">
+              <textarea
+                value={payload}
+                onChange={(e) => setPayload(e.target.value)}
+                rows={2}
+                placeholder="00020101..."
+                className="w-full resize-none rounded-xl border border-border bg-background px-3 py-2 font-[family-name:var(--font-mono)] text-xs outline-none focus:border-primary"
+              />
+              <button
+                onClick={() => handlePayload(payload)}
+                disabled={!payload || busy}
+                className="mt-2 w-full rounded-full bg-foreground py-2 text-sm font-medium text-background disabled:opacity-50"
+              >
+                {busy ? "Reading…" : "Read code"}
+              </button>
+            </div>
+          )}
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto min-h-dvh max-w-md px-5 pb-24">
       <header className="sticky top-0 z-10 -mx-5 mb-4 border-b border-border/60 bg-background/70 px-5 py-4 backdrop-blur-md">
@@ -216,57 +305,6 @@ export default function PayPage() {
           <span className="font-[family-name:var(--font-heading)] font-bold">Pay</span>
         </div>
       </header>
-
-      {stage === "scan" && (
-        <div className="animate-rise">
-          <h1 className="font-[family-name:var(--font-heading)] text-2xl font-bold">Scan QRIS</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Point your camera at any merchant&apos;s QRIS code.
-          </p>
-
-          <div className="relative mt-5 aspect-square w-full overflow-hidden rounded-2xl border border-border bg-foreground/5">
-            <video ref={videoRef} className="h-full w-full object-cover" muted playsInline />
-            {scanning ? (
-              <div className="pointer-events-none absolute inset-8 rounded-2xl border-2 border-white/80" />
-            ) : (
-              <button
-                onClick={startCamera}
-                className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted-foreground"
-              >
-                <span className="text-4xl">📷</span>
-                <span className="text-sm font-medium">Tap to start camera</span>
-              </button>
-            )}
-          </div>
-
-          <div className="mt-6 rounded-2xl border border-border bg-card p-4">
-            <p className="text-xs font-medium text-muted-foreground">No camera? Paste a QRIS payload</p>
-            <textarea
-              value={payload}
-              onChange={(e) => setPayload(e.target.value)}
-              rows={2}
-              placeholder="00020101..."
-              className="mt-2 w-full resize-none rounded-xl border border-border bg-background px-3 py-2 font-[family-name:var(--font-mono)] text-xs outline-none focus:border-primary"
-            />
-            <div className="mt-2 flex gap-2">
-              <button
-                onClick={() => handlePayload(payload)}
-                disabled={!payload || busy}
-                className="flex-1 rounded-full bg-foreground py-2 text-sm font-medium text-background disabled:opacity-50"
-              >
-                {busy ? "Reading…" : "Read code"}
-              </button>
-              <button
-                onClick={() => handlePayload(SAMPLE_QR)}
-                className="rounded-full border border-border px-4 py-2 text-sm font-medium"
-              >
-                Use sample
-              </button>
-            </div>
-          </div>
-          {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
-        </div>
-      )}
 
       {stage === "review" && info && (() => {
         const due = info.amount ?? (Number(amount) || 0);
@@ -287,7 +325,7 @@ export default function PayPage() {
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  placeholder="85000"
+                  placeholder="0"
                   className="mt-1 w-full rounded-xl border border-border bg-background px-4 py-3 text-center font-[family-name:var(--font-mono)] text-2xl outline-none focus:border-primary"
                 />
               </div>
