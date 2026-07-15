@@ -8,13 +8,13 @@ const steps = [
   },
   {
     n: "2",
-    t: "Top up with your card",
+    t: "Top up with your credit card",
     d: "Your balance is in rupiah, ready to spend the moment it lands.",
   },
   {
     n: "3",
-    t: "Scan & pay — or take cash",
-    d: "Pay any QRIS merchant, always settled in rupiah. Collect the rest as cash at a partner money changer.",
+    t: "Scan & pay",
+    d: "Pay any QRIS merchant, always settled in rupiah. Collect the rest as cash at a partner money changer *.",
   },
 ];
 
@@ -29,18 +29,17 @@ export default function Home() {
           Pay in Bali,
           <br />
           <span className="bg-gradient-to-r from-primary to-primary-end bg-clip-text text-transparent">
-            from your card.
+            directly from your card.
           </span>
         </h1>
         <p className="mt-4 text-lg text-muted-foreground">
-          Scan any QRIS merchant and take the rest home as cash — no Indonesian bank account,
-          SIM, or ID. Just WhatsApp.
+          Scan any QRIS merchant, no Indonesian bank account, SIM Card, or ID card needed.
         </p>
         <Link
           href="/wallet"
           className="mt-8 inline-block rounded-full bg-gradient-to-r from-primary to-primary-end px-7 py-3.5 font-semibold text-primary-foreground shadow-md transition active:scale-[0.98]"
         >
-          Open wallet
+          Connect wallet
         </Link>
       </div>
 
